@@ -54,6 +54,7 @@ type putter struct {
 	buf        []byte
 	bufbytes   int // bytes written to current buffer
 	ch         chan *part
+	h          http.Header
 	part       int
 	closed     bool
 	err        error
@@ -80,6 +81,7 @@ type putter struct {
 func newPutter(url url.URL, h http.Header, c *Config, b *Bucket) (p *putter, err error) {
 	p = new(putter)
 	p.url = url
+	p.h = h
 	p.c, p.b = new(Config), new(Bucket)
 	*p.c, *p.b = *c, *b
 	p.c.Concurrency = max(c.Concurrency, 1)
@@ -205,6 +207,9 @@ func (p *putter) putPart(part *part) error {
 	req.ContentLength = part.len
 	req.Header.Set(md5Header, part.md5)
 	req.Header.Set(sha256Header, part.sha256)
+	for name, _ := range p.h {
+		req.Header.Set(name, p.h.Get(name))
+	}
 	p.b.Sign(req)
 	resp, err := p.c.Client.Do(req)
 	if err != nil {
